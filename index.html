@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>МАТЕМАТИКА ДО 100 - ШАМПИОН</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
+        
+        body { 
+            margin: 0; font-family: 'Montserrat', sans-serif; 
+            background: linear-gradient(180deg, #e3f2fd 0%, #90caf9 100%); 
+            overflow: hidden; display: flex; flex-direction: column; height: 100vh;
+        }
+
+        .top-bar {
+            width: 100%; padding: 10px 30px; 
+            display: flex; justify-content: space-between; align-items: center;
+            box-sizing: border-box; background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(5px); z-index: 500;
+        }
+
+        .badge {
+            font-size: 1.1em; font-weight: 900; color: #1565c0;
+            background: white; padding: 8px 15px; border-radius: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 2px solid #1565c0;
+            margin-right: 10px;
+        }
+
+        .btn-home {
+            background: #1565c0; color: white; border: none; padding: 10px 20px;
+            border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s;
+        }
+        .btn-home:hover { background: #0d47a1; transform: scale(1.05); }
+
+        .game-stage {
+            flex: 1; display: flex; justify-content: space-between; align-items: flex-start;
+            width: 100%; padding: 20px 50px; box-sizing: border-box; position: relative;
+        }
+
+        .side-column { width: 220px; display: flex; flex-direction: column; align-items: center; z-index: 10; }
+
+        .option-bubble {
+            width: 160px; height: 160px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            border: 8px solid white; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            margin-bottom: 20px; background: linear-gradient(135deg, #42a5f5, #2196f3);
+        }
+        .option-bubble h2 { font-size: 4em; margin: 0; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+
+        .label-tag {
+            background: white; padding: 5px 15px; border-radius: 10px;
+            color: #1565c0; font-weight: bold; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .gesture-img { width: 100%; height: auto; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.2)); }
+
+        .center-column { flex: 1; display: flex; flex-direction: column; align-items: center; margin-top: 50px; }
+
+        .problem-box {
+            background: white; padding: 30px 60px; border-radius: 60px;
+            border: 10px solid #1565c0; color: #0d47a1;
+            font-size: 5.5em; font-weight: 900;
+            box-shadow: 0 15px 45px rgba(0,0,0,0.2); text-align: center; min-width: 450px;
+        }
+
+        .feedback-text {
+            margin-top: 40px; background: #bbdefb; color: #0d47a1; 
+            padding: 15px 50px; border-radius: 30px; font-size: 2.2em; font-weight: bold;
+            border: 4px solid #1565c0; opacity: 0; transform: scale(0.8); transition: 0.4s;
+        }
+        .feedback-text.visible { opacity: 1; transform: scale(1); }
+
+        .overlay { 
+            position: fixed; inset: 0; background: rgba(227, 242, 253, 0.98);
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal {
+            background: white; padding: 40px; border-radius: 40px; text-align: center;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.2); width: 850px; border: 12px solid #90caf9;
+        }
+
+        .lvl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 30px 0; }
+        .lvl-card {
+            background: linear-gradient(135deg, #42a5f5, #2196f3); color: white;
+            padding: 25px; border-radius: 25px; cursor: pointer; border: 4px solid white;
+            transition: 0.3s;
+        }
+        .lvl-card:hover { transform: translateY(-10px); box-shadow: 0 15px 25px rgba(21,101,192,0.4); }
+
+        .btn-start {
+            background: linear-gradient(45deg, #1565c0, #0d47a1); color: white;
+            font-size: 1.8em; padding: 15px 50px; border-radius: 50px; border: none;
+            cursor: pointer; font-weight: 900; margin-top: 20px; transition: 0.3s;
+        }
+
+        .loading { border-color: #ffeb3b !important; transform: scale(1.1); box-shadow: 0 0 30px #ffeb3b; }
+        #hidden-cam { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div style="display:flex;">
+            <div class="badge">УЧЕНИК: <span id="studentNum">1</span></div>
+            <div class="badge">ЗАДАЧА: <span id="progCount">1</span> / 10</div>
+            <div class="badge">ГРЕШКИ: <span id="errorCount">0</span></div>
+        </div>
+        <button class="btn-home" onclick="goHome()">🏠 МЕНЮ</button>
+    </div>
+
+    <div class="game-stage">
+        <div class="side-column">
+            <div id="bubbleL" class="option-bubble"><h2 id="ansL">?</h2></div>
+            <div class="label-tag">ЛЯВА РЪКА</div>
+            <img class="gesture-img" src="level1_left.png">
+        </div>
+
+        <div class="center-column">
+            <div class="problem-box" id="problemDisplay">?</div>
+            <div id="feedbackBox" class="feedback-text">БРАВО!</div>
+        </div>
+
+        <div class="side-column">
+            <div id="bubbleR" class="option-bubble"><h2 id="ansR">?</h2></div>
+            <div class="label-tag">ДЯСНА РЪКА</div>
+            <img class="gesture-img" src="level1_right.png">
+        </div>
+    </div>
+
+    <div id="hidden-cam"></div>
+
+    <div id="start-screen" class="overlay">
+        <div class="modal">
+            <h1 style="color:#1565c0; font-size: 3em; margin: 0;">МАТЕМАТИКА ДО 100</h1>
+            <p style="font-size: 1.3em;">Избери трудност:</p>
+            
+            <div class="lvl-grid">
+                <div class="lvl-card" onclick="initGame(1)">
+                    <h2>НИВО 1</h2>
+                    <p>Кръгли числа (20+30)</p>
+                </div>
+                <div class="lvl-card" onclick="initGame(2)">
+                    <h2>НИВО 2</h2>
+                    <p>Без преминаване (45+3)</p>
+                </div>
+                <div class="lvl-card" onclick="initGame(3)">
+                    <h2>НИВО 3</h2>
+                    <p>Смесени до 100</p>
+                </div>
+            </div>
+
+            <p style="color: #0d47a1; font-weight: bold; font-size: 1.2em;">Създадено от: ДОЧКА КЮЧУКОВА</p>
+        </div>
+    </div>
+
+    <div id="end-screen" class="overlay" style="display:none;">
+        <div class="modal">
+            <h1 style="font-size: 3em; color: #1565c0;">ОТЛИЧНА РАБОТА!</h1>
+            <p id="finalStats" style="font-size: 1.8em; margin: 10px 0;"></p>
+            <div id="finalMessage" style="font-size: 2.2em; margin: 20px 0; font-weight: 900;"></div>
+            <button class="btn-start" onclick="goHome()">КЪМ МЕНЮТО</button>
+        </div>
+    </div>
+
+<script>
+    let video, poseNet, poses = [];
+    let isPlaying = false, holdCounter = 0, lastSide = null;
+    let currentTask = 0, errors = 0, currentLevel = 1;
+    let taskData = null;
+
+    function setup() {
+        video = createCapture(VIDEO);
+        video.size(320, 240);
+        video.parent('hidden-cam');
+        poseNet = ml5.poseNet(video, () => console.log("AI Ready"));
+        poseNet.on('pose', results => poses = results);
+    }
+
+    function goHome() {
+        isPlaying = false;
+        document.getElementById('start-screen').style.display = 'flex';
+        document.getElementById('end-screen').style.display = 'none';
+        document.getElementById('feedbackBox').classList.remove('visible');
+    }
+
+    function initGame(lvl) {
+        currentLevel = lvl;
+        document.getElementById('start-screen').style.display = 'none';
+        currentTask = 0; errors = 0;
+        document.getElementById('errorCount').innerText = 0;
+        nextProblem();
+    }
+
+    function generateProblem() {
+        let n1, n2, op = Math.random() > 0.5 ? '+' : '-';
+        
+        if (currentLevel === 1) { // Кръгли десетици
+            n1 = (Math.floor(Math.random() * 8) + 1) * 10;
+            n2 = (Math.floor(Math.random() * (op === '+' ? (9-n1/10) : n1/10)) + 1) * 10;
+        } else if (currentLevel === 2) { // Без преминаване
+            n1 = Math.floor(Math.random() * 80) + 10;
+            n2 = Math.floor(Math.random() * 8) + 1;
+            if (op === '-' && (n1 % 10 < n2)) n1 += 10; // Гарантираме без преминаване при изваждане
+            if (op === '+' && (n1 % 10 + n2 > 9)) n1 -= 10; // Гарантираме без преминаване при събиране
+        } else { // Смесени
+            n1 = Math.floor(Math.random() * 90) + 10;
+            n2 = Math.floor(Math.random() * 20) + 1;
+            if (op === '-' && n1 < n2) { let t = n1; n1 = n2; n2 = t; }
+        }
+
+        let corr = op === '+' ? n1 + n2 : n1 - n2;
+        let wrong = corr + (Math.random() > 0.5 ? 10 : -10);
+        if (wrong === corr || wrong < 0 || wrong > 100) wrong = corr + 2;
+
+        return { q: `${n1} ${op} ${n2}`, a: corr, w: wrong };
+    }
+
+    function nextProblem() {
+        if(currentTask >= 10) { showEnd(); return; }
+        isPlaying = false; holdCounter = 0;
+        document.getElementById('feedbackBox').classList.remove('visible');
+        document.getElementById('progCount').innerText = currentTask + 1;
+        
+        taskData = generateProblem();
+        document.getElementById('problemDisplay').innerText = taskData.q;
+
+        let leftIsCorrect = Math.random() > 0.5;
+        document.getElementById('ansL').innerText = leftIsCorrect ? taskData.a : taskData.w;
+        document.getElementById('ansR').innerText = leftIsCorrect ? taskData.w : taskData.a;
+        taskData.corrSide = leftIsCorrect ? 'L' : 'R';
+
+        setTimeout(() => isPlaying = true, 800);
+    }
+
+    function draw() {
+        if(!isPlaying || poses.length === 0) return;
+        let p = poses[0].pose;
+        let noseY = p.nose.y;
+        let detected = (p.leftWrist.y < noseY) ? 'L' : (p.rightWrist.y < noseY) ? 'R' : null;
+
+        if(detected && detected === lastSide) {
+            holdCounter++;
+            document.getElementById('bubble' + detected).classList.add('loading');
+            if(holdCounter > 25) checkAnswer(detected);
+        } else {
+            holdCounter = 0; lastSide = detected;
+            document.getElementById('bubbleL').classList.remove('loading');
+            document.getElementById('bubbleR').classList.remove('loading');
+        }
+    }
+
+    function checkAnswer(side) {
+        isPlaying = false;
+        if(side === taskData.corrSide) {
+            document.getElementById('feedbackBox').innerText = "ВЯРНО! ✅";
+            document.getElementById('feedbackBox').classList.add('visible');
+            currentTask++;
+            setTimeout(nextProblem, 2000);
+        } else {
+            errors++;
+            document.getElementById('errorCount').innerText = errors;
+            document.getElementById('bubble' + side).style.background = "#d32f2f";
+            setTimeout(() => {
+                document.getElementById('bubble' + side).style.background = "";
+                isPlaying = true; holdCounter = 0;
+            }, 1000);
+        }
+    }
+
+    function showEnd() {
+        document.getElementById('end-screen').style.display = 'flex';
+        document.getElementById('finalStats').innerText = `10 задачи с ${errors} грешки.`;
+        let msg = document.getElementById('finalMessage');
+        if(errors === 0) msg.innerHTML = "🏆 ТИ СИ МАЙСТОР НА ЧИСЛАТА!";
+        else msg.innerHTML = "🌟 БРАВО ЗА УСИЛИЕТО!";
+    }
+</script>
+</body>
+</html>
